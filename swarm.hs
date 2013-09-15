@@ -1,3 +1,5 @@
+{-# LANGUAGE ParallelListComp #-}
+
 import Control.Concurrent
 import Control.Monad
 import Graphics.UI.SDL as SDL
@@ -17,7 +19,8 @@ bgColor = white
 
 data Dot = Dot { x :: Int
                , y :: Int
-               , friend :: Int } -- Index of the friend
+               , friend :: Int
+               } deriving Show
 
 type Group = [Dot]
 
@@ -74,13 +77,12 @@ drawField = do
 
 -- Simulation logic
 populate :: RandomGen g => g -> Int -> Group
-populate g c = take c $ map (dotFromTriple) $ zip3 xs ys fs
+populate g c = take c $ [Dot dx dy df | dx <- xs | dy <- ys | df <- fs]
     where
         (g1, g2) = split g
         xs = randomRs (0, width) g1
         ys = randomRs (0, height) g2
         fs = randomRs (0, c) g1 -- You could use a distinct RNG for this, but it doesn't really matter
-        dotFromTriple (dx,dy,df) = Dot dx dy df
 
 step :: Group -> Group
 step g = map (stepDot g) g
