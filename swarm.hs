@@ -19,9 +19,9 @@ stepDistance = 1
 friendMultiplier = 12
 enemyMultiplier = 6
 averageMultiplier = 2
-centerMultiplier = 2
+centerMultiplier = 1
 borderMultiplier = 32
-awayMultiplier = 4
+awayMultiplier = 2
 
 privateSpace = 20 
 replaceChance = 15 -- In %
@@ -147,7 +147,7 @@ step :: Group -> Group
 step g = map (stepDot g) g
 
 stepDot :: Group -> Dot -> Dot
-stepDot g d = moveToAverage $ moveAway $ moveFromEnemy $ moveToFriend $ moveFromBorder d
+stepDot g d = moveToCenter $ moveFromEnemy $ moveToFriend $ moveFromBorder d
     where f = g !! (friend d)
           e = g !! (enemy d)
           moveAway d = moveFrom d (findClosest g d) (stepDistance * awayMultiplier)
