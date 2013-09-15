@@ -2,6 +2,7 @@
 
 import Control.Concurrent
 import Control.Monad
+import Control.Monad.State
 import Graphics.UI.SDL as SDL
 import System.Random
 import System.Exit
@@ -24,17 +25,23 @@ data Dot = Dot { x :: Int
 
 type Group = [Dot]
 
+data Simulation = Simulation { dots :: Group }
+
+type Sim = StateT Simulation IO
 
 main = do
     initWindow
-    redraw
+
+    gen <- newStdGen
+    let g = populate gen dotCount
     
-    mainLoop
+    runStateT mainLoop (Simulation g)
 
 initWindow = do
     SDL.init [SDL.InitEverything]
     SDL.setVideoMode width height 32 [SDL.DoubleBuf]
     SDL.setCaption "Swarm" "swarm"
+    
 
 exit = do
     putStrLn "done"
@@ -46,34 +53,52 @@ eventLoop = forkIO . forever $ waitEvent >>= handleEvent
 
 handleEvent e =  when (e == SDL.Quit) exit
 
-
--- Drawing
+-- Main loop
+mainLoop :: Sim ()
 mainLoop = forever $ do
     redraw
-    e <- pollEvent
-    handleEvent e
+    processSim
+    e <- liftIO pollEvent
+    liftIO $ handleEvent e
 
+processSim :: Sim ()
+processSim = do
+    g <- getDots
+    let ng = step g
+    putDots ng
+
+getDots :: Sim Group
+getDots = do
+    sim <- get
+    return $ dots sim
+
+putDots :: Group -> Sim ()
+putDots g = do
+    sim <- get
+    put sim {dots = g}
+
+-- Drawing
+
+redraw :: Sim ()
 redraw = do
-    s <- getVideoSurface
+    s <- liftIO getVideoSurface
     let r = Just (Rect 0 0 width height)
-    SDL.fillRect s r bgColor
+    liftIO $ SDL.fillRect s r bgColor
     drawField
-    SDL.flip s
+    liftIO $ SDL.flip s
 
+drawField :: Sim ()
 drawField = do
-    s <- getVideoSurface
+    s <- liftIO getVideoSurface
     
-    let gen = mkStdGen 42
-    let g = populate gen dotCount
+    g <- getDots
     let recs = map dotToRec g
     let draws = map (\x -> x black) $ map (SDL.fillRect s) recs
 
-    sequence draws
+    liftIO $ sequence_ draws
 
     where
         dotToRec d = Just (Rect (x d) (y d) dotSize dotSize)
-
-
 
 -- Simulation logic
 populate :: RandomGen g => g -> Int -> Group
