@@ -1,10 +1,14 @@
 import Control.Concurrent
 import Control.Monad
 import Graphics.UI.SDL as SDL
+import System.Random
 import System.Exit
 
 width = 1280
 height = 720
+
+dotCount = 100
+dotSize = 4
 
 white = Pixel 0x00FFFFFF
 black = Pixel 0x00000000
@@ -55,20 +59,31 @@ redraw = do
 
 drawField = do
     s <- getVideoSurface
-    let g = [Dot 10 10 0, Dot 11 120 0, Dot 764 124 0, Dot 1200 20 0]
+    
+    let gen = mkStdGen 42
+    let g = populate gen dotCount
     let recs = map dotToRec g
     let draws = map (\x -> x black) $ map (SDL.fillRect s) recs
 
     sequence draws
 
     where
-        dotToRec d = Just (Rect (x d) (y d) 2 2)
+        dotToRec d = Just (Rect (x d) (y d) dotSize dotSize)
 
 
 
 -- Simulation logic
-step :: Group -> Group
-step g = map (next g) g
+populate :: RandomGen g => g -> Int -> Group
+populate g c = take c $ map (dotFromTriple) $ zip3 xs ys fs
+    where
+        (g1, g2) = split g
+        xs = randomRs (0, width) g1
+        ys = randomRs (0, height) g2
+        fs = randomRs (0, c) g1 -- You could use a distinct RNG for this, but it doesn't really matter
+        dotFromTriple (dx,dy,df) = Dot dx dy df
 
-next :: Group -> Dot -> Dot
-next g d = d
+step :: Group -> Group
+step g = map (stepDot g) g
+
+stepDot  :: Group -> Dot -> Dot
+stepDot g d = d
