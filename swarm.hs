@@ -9,11 +9,11 @@ import Graphics.UI.SDL as SDL
 import System.Random
 import System.Exit
 
-width = 1920
-height = 1080
+width = 1280
+height = 720
 
 dotCount = 1000
-dotSize = 3
+dotSize = 4
 
 stepDistance = 1
 friendMultiplier = 12
@@ -39,7 +39,11 @@ data Dot = Dot { x :: Int
 
 type Group = [Dot]
 
-data Simulation = Simulation { dots :: Group }
+type MouseLoc = (Int, Int)
+
+data Simulation = Simulation { dots :: Group
+                             , mouse :: MouseLoc
+                             }
 
 type Sim = StateT Simulation IO
 
@@ -47,9 +51,12 @@ main = do
     initWindow
 
     gen <- newStdGen
+
     let g = populate gen dotCount
     
-    runStateT mainLoop (Simulation g)
+    l <- getMouseLoc
+
+    runStateT mainLoop (Simulation g l)
 
 initWindow = do
     SDL.init [SDL.InitEverything]
@@ -63,17 +70,33 @@ exit = do
     exitSuccess
 
 -- Events
-eventLoop = forkIO . forever $ waitEvent >>= handleEvent
+processEvents = do
+    e <- liftIO pollEvent
+    liftIO $ handleEvent e
+
+    l <- liftIO getMouseLoc
+    putMouseLoc l
 
 handleEvent e =  when (e == SDL.Quit) exit
+
+getMouseLoc :: IO MouseLoc
+getMouseLoc = do 
+    s <- SDL.getMouseState
+    return $ mouseStateToLoc s
+
+putMouseLoc :: MouseLoc -> Sim ()
+putMouseLoc l = do
+    sim <- get
+    put sim {mouse = l}
+
+mouseStateToLoc (x, y, _) = (x, y)
 
 -- Ties it all together
 mainLoop :: Sim ()
 mainLoop = forever $ do
     redraw
     processSim
-    e <- liftIO pollEvent
-    liftIO $ handleEvent e
+    processEvents
 
 -- Moves the simulation
 processSim :: Sim ()
