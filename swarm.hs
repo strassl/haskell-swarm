@@ -53,9 +53,7 @@ main = do
     gen <- newStdGen
 
     let g = populate gen dotCount
-    
     l <- getMouseLoc
-
     runStateT mainLoop (Simulation g l)
 
 initWindow = do
@@ -75,7 +73,7 @@ processEvents = do
     liftIO $ handleEvent e
 
     l <- liftIO getMouseLoc
-    putMouseLoc l
+    modify (\s -> s {mouse = l})
 
 handleEvent e =  when (e == SDL.Quit) exit
 
@@ -83,11 +81,6 @@ getMouseLoc :: IO MouseLoc
 getMouseLoc = do 
     s <- SDL.getMouseState
     return $ mouseStateToLoc s
-
-putMouseLoc :: MouseLoc -> Sim ()
-putMouseLoc l = do
-    sim <- get
-    put sim {mouse = l}
 
 mouseStateToLoc (x, y, _) = (x, y)
 
@@ -106,18 +99,13 @@ processSim = do
 
     x::Int <- liftIO $ getStdRandom (randomR (0,100 - replaceChance))
 
-    let ng = if x == 0 then recalcDot gen g else step g
-    putDots ng
+    let ng = if x == 0 then (step $ recalcDot gen g) else step g
+    modify (\s -> s {dots = ng})
 
 getDots :: Sim Group
 getDots = do
     sim <- get
     return $ dots sim
-
-putDots :: Group -> Sim ()
-putDots g = do
-    sim <- get
-    put sim {dots = g}
 
 -- Drawing
 redraw :: Sim ()
